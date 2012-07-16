@@ -11,7 +11,7 @@ You can use the program to show available devices with their state, change outle
 
 == Installation ==
 
-Download the kernel module .c file and compile it as a module for your kernel. On most systems a 'make' should do everything you need. You have to execute it as root to get the kernel module installed.
+Download the kernel module .c file and compile it as a module for your kernel. On most systems a 'make; make install' should do everything you need. You have to execute it as root to get the kernel module installed.
 
 If everything worked, you can load the module with 'modprobe egpms'.
 
