@@ -5,7 +5,7 @@ You can use the program to show available devices with their state, change outle
 == Requirements ==
 
 * Python 3 or above
-* egpms kernel module
+* egpms kernel module (needs linux kernel 3.3 or above)
 
 '''Warning: If you load the kernel module, you can't use sispmctl (http://sispmctl.sourceforge.net/).'''
 
