@@ -1,0 +1,96 @@
+egpms_ctl is a program to make the access of egpms kernel module sysfs files easier.
+
+You can use the program to show available devices with their state, change outlet states and to change outlet schedules.
+
+== Requirements ==
+
+* Python 3 or above
+* egpms kernel module
+
+'''Warning: If you load the kernel module, you can't use sispmctl (http://sispmctl.sourceforge.net/).'''
+
+== Installation ==
+
+Download the kernel module .c file and compile it as a module for your kernel. On most systems a 'make' should do everything you need. You have to execute it as root to get the kernel module installed.
+
+If everything worked, you can load the module with 'modprobe egpms'.
+
+egpms_ctl is a python script, so you can execute it wherever you want.
+
+== Usage ==
+
+There are two ways of accessing your gembird device. With the egpms_ctl script or directly through the sysfs files.
+
+=== egpms_ctl ===
+
+Here is an example workflow with the script
+
+List all available devices and information:
+<pre>
+egpms_ctl -l
+</pre>
+
+Enable outlet 3:
+<pre>
+egpms_ctl 3=1
+</pre>
+
+If you have multiple devices attached to your system, use -d followed by parts of the USB-ID or the serial id
+<pre>
+egpms_ctl -d 42:ff 3=1
+</pre>
+
+Enable outlet 0, disable outlet 2:
+<pre>
+egpms_ctl 0=1 2=0
+</pre>
+
+Setup a schedule for outlet 3. The schedule consists of enable in 1 minute, disable after another minute, and repeat from the beginning after another minute.
+<pre>
+egpms_ctl 3=1@1m 3=0@1m 3=repeat@1m
+</pre>
+
+You also can mix absolute and relative times. Relative times will always be added to the result of the previous argument that influenced the schedule of the specified outlet. So in the following example, outlet 3 will be disabled at 15:01. Be aware that all times are converted to time differences, so repeat statements with a schedule including absolute times do make sense.
+<pre>
+egpms_ctl 3=1@2012-07-16_15:00 3=0@1m 3=repeat@1m
+</pre>
+
+It's possible to define schedules for different outlets at the same time and enable single outlets.
+<pre>
+egpms_ctl -l 3=0 3=1@1m 3=0@1m 2=1 1=0@15m 3=repeat@3m 1=1@15m 0=0
+</pre>
+This is the same as the following. Notice that the list command is executed after all other statements, so you can see the result of your commands.
+<pre>
+egpms_ctl 3=0
+egpms_ctl 3=1@1m 3=0@1m 3=repeat@3m
+egpms_ctl 2=1
+egpms_ctl 1=0@15m 1=1@15m
+egpms_ctl 0=0
+egpms_ctl -l
+</pre>
+
+To clear a schedule:
+<pre>
+egpms_ctl 3=clear
+</pre>
+
+
+=== egpms sysfs files ===
+
+You can find the sysfs files of this driver at '/sysfs/bus/usb/drivers/usbegpms/<USBID>/'.
+
+There are several files to control the gembird device. Notice that all reads on the files may return 'unknown'. This is not a bug, the device sometimes simply returns invalid data. Just read it again in this case.
+
+'''Files:'''
+;serial_id
+: Contains the internal serial ID of your device.
+;outlet_X
+: State of outlet X. Reading this file will return '0' (off) or '1' (on). Writing '0' or '1' into this file will enable/disable outlet X.
+;outlet_X_schedule
+: Schedule of outlet X. Write "2 1\n3 0\n5\n" into this file will reprogram the device to enable outlet X after 2 minutes, disable after another 3 minutes and repeat everything after 5 minutes. You can omit the repeat information. Reading this file returns a string with an unix timestamp in the first row, followed by the normal schedule format as used when writing.
+
+
+== Thanks ==
+
+Thanks to sispmctl (http://sispmctl.sourceforge.net/) project, which was used to get the USB protocol information.
+
