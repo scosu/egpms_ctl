@@ -137,7 +137,7 @@ def gather_devices():
 			print("ERROR: Can't find device " + parsed.device)
 			sys.exit(-1)
 		if len(usb_dev_map) == 1:
-			selected_device = usb_dev_map.values()[0]
+			selected_device = list(usb_dev_map.values())[0]
 
 def set_outlet(dev_path, outlet_id, state):
 	if state not in ['0', '1', 0, 1]:
