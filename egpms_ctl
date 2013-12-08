@@ -4,9 +4,9 @@
 #
 # Copyright (C) 2012 Markus Pargmann (mpargmann@allfex.org)
 #
-#	This program is free software; you can redistribute it and/or
-#	modify it under the terms of the GNU General Public License as
-#	published by the Free Software Foundation, version 2.
+#       This program is free software; you can redistribute it and/or
+#       modify it under the terms of the GNU General Public License as
+#       published by the Free Software Foundation, version 2.
 #
 #
 
@@ -35,254 +35,254 @@ selected_device = None
 egpms_sysfs = '/sys/bus/usb/drivers/usbegpms'
 
 def check_requirements():
-	if not os.path.exists(egpms_sysfs):
-		print('ERROR: The egpms kernel driver is not loaded.')
-		sys.exit(1)
+        if not os.path.exists(egpms_sysfs):
+                print('ERROR: The egpms kernel driver is not loaded.')
+                sys.exit(1)
 
 def dump_schedule(path, outlet_id):
-	schedule = 'unknown'
-	try:
-		while schedule == 'unknown':
-			f = open(os.path.join(path, 'outlet_' + str(outlet_id) + '_schedule'), 'r')
-			schedule = f.read().strip()
-			f.close()
-	except:
-		print("\tERROR: no such outlet " + str(outlet_id))
-		return -1
-	timestamp = -1
-	events = []
-	loop = -1
-	for event in schedule.splitlines():
-		if timestamp == -1:
-			timestamp = int(event)
-			continue
-		event = event.split(' ')
-		if len(event) > 1:
-			events.append([int(i) for i in event])
-		else:
-			loop = int(event[0])
-	programmed_on = datetime.datetime.fromtimestamp(timestamp)
-	if len(events) == 0:
-		return -1
-	print("\tSchedule of outlet " + str(outlet_id))
-	print("\t\tProgrammed on: " + programmed_on.strftime('%Y-%m-%d %H:%M'))
-	for event in events:
-		action = ''
-		if event[1] == 1:
-			action = 'on'
-		else:
-			action = 'off'
-		print("\t\t+" + str(event[0]) + "m " + action)
-	if loop != -1:
-		print("\t\tRepeating after " + str(loop) + "m")
-	return 0
+        schedule = 'Unknown schedule'
+        try:
+                while schedule == 'Unknown schedule':
+                        f = open(os.path.join(path, 'outlet' + str(outlet_id) + '_schedule'), 'r')
+                        schedule = f.read().strip()
+                        f.close()
+        except:
+                print("\tERROR: no such outlet " + str(outlet_id))
+                return -1
+        sched = schedule.split(':')
+        timestamp = float(sched[0])
+        events = []
+        loop = -1
+        for event in sched[1].split(';'):
+                if event.strip() == '':
+                        break
+                event = event.split(',')
+                if len(event) > 1:
+                        events.append([int(i) for i in event])
+                else:
+                        loop = int(event[0])
+        programmed_on = datetime.datetime.fromtimestamp(timestamp)
+        if len(events) == 0:
+                return -1
+        print("\tSchedule of outlet " + str(outlet_id))
+        print("\t\tProgrammed on: " + programmed_on.strftime('%Y-%m-%d %H:%M'))
+        for event in events:
+                action = ''
+                if event[1] == 1:
+                        action = 'on'
+                else:
+                        action = 'off'
+                print("\t\t+" + str(event[0]) + "m " + action)
+        if loop != -1:
+                print("\t\tRepeating after " + str(loop) + "m")
+        return 0
 
 
 def dump_device_info(path):
-	serial = 'unknown'
-	usb_id = os.path.basename(path)
-	while serial == 'unknown':
-		f = open(os.path.join(path, 'serial_id'), 'r')
-		serial = f.read().strip()
-		f.close()
-	outlets = {}
-	for i in glob.glob(os.path.join(path, 'outlet_') + '[0-9]'):
-		outlet_id = i[-1:]
-		state = 'unknown'
-		while state == 'unknown':
-			f = open(i, 'r')
-			state = f.read().strip()
-			f.close()
-		outlets[outlet_id] = state
+        serial = 'unknown'
+        usb_id = os.path.basename(path)
+        while serial == 'unknown':
+                f = open(os.path.join(path, 'serial_id'), 'r')
+                serial = f.read().strip()
+                f.close()
+        outlets = {}
+        for i in glob.glob(os.path.join(path, 'outlet') + '[1-9]'):
+                outlet_id = i[-1:]
+                state = 'unknown'
+                while state == 'unknown':
+                        f = open(i, 'r')
+                        state = f.read().strip()
+                        f.close()
+                outlets[outlet_id] = state
 
-	print('Device:')
-	print("\tUSB-ID:        " + usb_id)
-	print("\tSerial-ID:     " + serial)
-	print("\tOutlets:       " + str(len(outlets.keys())))
-	enabled = "\tEnabled:       "
-	for k in sorted(outlets.keys()):
-		if outlets[k] == '1':
-			enabled += k + ' '
-	print(enabled)
-	for k in sorted(outlets.keys()):
-		dump_schedule(path, k)
+        print('Device:')
+        print("\tUSB-ID:        " + usb_id)
+        print("\tSerial-ID:     " + serial)
+        print("\tOutlets:       " + str(len(outlets.keys())))
+        enabled = "\tEnabled:       "
+        for k in sorted(outlets.keys()):
+                if outlets[k] == 'enabled':
+                        enabled += k + ' '
+        print(enabled)
+        for k in sorted(outlets.keys()):
+                dump_schedule(path, k)
 
 def list_devices():
-	for k,v in usb_dev_map.items():
-		dump_device_info(v)
+        for k,v in usb_dev_map.items():
+                dump_device_info(v)
 
 def gather_devices():
-	global selected_device
-	global usb_dev_map
-	global serial_dev_map
-	check_requirements()
-	for i in os.listdir(egpms_sysfs):
-		device_path = os.path.join(egpms_sysfs, i)
-		if not os.path.isdir(device_path):
-			continue
-		if i == 'module':
-			continue
-		usb_dev_map[i] = device_path
-		serial = 'unknown'
-		while serial == 'unknown':
-			f = open(os.path.join(device_path, 'serial_id'), 'r')
-			serial = f.read().strip()
-			f.close()
-		serial_dev_map[serial] = device_path
-		if parsed.device != None:
-			if parsed.device in serial or parsed.device in i:
-				selected_device = device_path
-	if selected_device == None:
-		if parsed.device != None:
-			print("ERROR: Can't find device " + parsed.device)
-			sys.exit(-1)
-		if len(usb_dev_map) == 1:
-			selected_device = list(usb_dev_map.values())[0]
+        global selected_device
+        global usb_dev_map
+        global serial_dev_map
+        check_requirements()
+        for i in os.listdir(egpms_sysfs):
+                device_path = os.path.join(egpms_sysfs, i)
+                if not os.path.isdir(device_path):
+                        continue
+                if i == 'module':
+                        continue
+                usb_dev_map[i] = device_path
+                serial = 'unknown'
+                while serial == 'unknown':
+                        f = open(os.path.join(device_path, 'serial_id'), 'r')
+                        serial = f.read().strip()
+                        f.close()
+                serial_dev_map[serial] = device_path
+                if parsed.device != None:
+                        if parsed.device in serial or parsed.device in i:
+                                selected_device = device_path
+        if selected_device == None:
+                if parsed.device != None:
+                        print("ERROR: Can't find device " + parsed.device)
+                        sys.exit(-1)
+                if len(usb_dev_map) == 1:
+                        selected_device = list(usb_dev_map.values())[0]
 
 def set_outlet(dev_path, outlet_id, state):
-	if state not in ['0', '1', 0, 1]:
-		print("ERROR: Invalid state " + str(state))
-		return
-	outlet = os.path.join(dev_path, 'outlet_' + str(outlet_id))
-	if not os.path.exists(outlet):
-		print("ERROR: Outlet " + str(outlet_id) + " does not exist")
-		return
-	try:
-		f = open(outlet, 'w')
-		f.write(str(state))
-		f.close()
-	except:
-		print("ERROR: Failed to open " + outlet + " to set outlet " + str(outlet_id))
-		print("Check permissions.")
+        if state not in ['0', '1', 0, 1]:
+                print("ERROR: Invalid state " + str(state))
+                return
+        outlet = os.path.join(dev_path, 'outlet' + str(outlet_id))
+        if not os.path.exists(outlet):
+                print("ERROR: Outlet " + str(outlet_id) + " does not exist")
+                return
+        try:
+                f = open(outlet, 'w')
+                f.write(str(state))
+                f.close()
+        except:
+                print("ERROR: Failed to open " + outlet + " to set outlet " + str(outlet_id))
+                print("Check permissions.")
 
 def clear_schedule(outlet_id):
-	outlet = os.path.join(selected_device, 'outlet_' + str(outlet_id) + '_schedule')
-	if not os.path.exists(outlet):
-		print("ERROR: invalid outlet " + str(outlet_id))
-		sys.exit(1)
-	try:
-		f = open(outlet, 'w')
-		f.write("\n")
-		f.close()
-	except:
-		print("ERROR: can't open file " + outlet + " for writing")
-		print("Check permissions")
-		sys.exit(1)
+        outlet = os.path.join(selected_device, 'outlet' + str(outlet_id) + '_schedule')
+        if not os.path.exists(outlet):
+                print("ERROR: invalid outlet " + str(outlet_id))
+                sys.exit(1)
+        try:
+                f = open(outlet, 'w')
+                f.write("\n")
+                f.close()
+        except:
+                print("ERROR: can't open file " + outlet + " for writing")
+                print("Check permissions")
+                sys.exit(1)
 
 
 def set_schedule(outlet_id, sched, last_time):
-	translated = []
-	for i in sched:
-		translated.append([int((i[0] - last_time)/60), i[1]])
-		last_time = i[0]
-	cmd = ''
-	for i in translated:
-		if i[1].lower() == 'clear':
-			cmd = ''
-		elif i[1].lower() == 'repeat':
-			cmd += str(i[0]) + "\n"
-			break
-		elif i[1] in ['0', '1', 0, 1]:
-			cmd += str(i[0]) + ' ' + str(i[1]) + "\n"
-		else:
-			print("ERROR: invalid action: " + i[1])
-			sys.exit(1)
-	outlet = os.path.join(selected_device, 'outlet_' + str(outlet_id) + '_schedule')
-	if not os.path.exists(outlet):
-		print("ERROR: invalid outlet " + str(outlet_id))
-		sys.exit(1)
-	try:
-		f = open(outlet, 'w')
-		f.write(cmd + "\n")
-		f.close()
-	except:
-		print("ERROR: can't open file " + outlet + " for writing")
-		print("Check permissions")
-		sys.exit(1)
+        translated = []
+        for i in sched:
+                translated.append([int((i[0] - last_time)/60), i[1]])
+                last_time = i[0]
+        cmd = ''
+        for i in translated:
+                if i[1].lower() == 'clear':
+                        cmd = ''
+                elif i[1].lower() == 'repeat':
+                        cmd += str(i[0]) + ";"
+                        break
+                elif i[1] in ['0', '1', 0, 1]:
+                        cmd += str(i[0]) + ',' + str(i[1]) + ";"
+                else:
+                        print("ERROR: invalid action: " + i[1])
+                        sys.exit(1)
+        outlet = os.path.join(selected_device, 'outlet' + str(outlet_id) + '_schedule')
+        if not os.path.exists(outlet):
+                print("ERROR: invalid outlet " + str(outlet_id))
+                sys.exit(1)
+        try:
+                f = open(outlet, 'w')
+                f.write(cmd + "\n")
+                f.close()
+        except:
+                print("ERROR: can't open file " + outlet + " for writing")
+                print("Check permissions")
+                sys.exit(1)
 
 gather_devices()
 
 if len(parsed.action) != 0:
-	if len(usb_dev_map.keys()) > 1 and selected_device == None:
-		print("ERROR: Multiple devices, but none selected. Please set a device with '-d'")
-		sys.exit(1)
-	schedules = {}
-	now = time.time()
-	last_times = {}
-	for action in parsed.action:
-		outlet_id, _, state = action.partition('=')
-		if state == '':
-			print("ERROR: invalid action '" + action + "'")
-			sys.exit(1)
-		state, _, time_val = state.partition('@')
-		if state.lower() == 'clear':
-			clear_schedule(outlet_id)
-			continue
-		if time_val == '':
-			set_outlet(selected_device, outlet_id, state)
-		else:
-			if 'm' in time_val:
-				minutes = int(time_val[:-1])
-				if outlet_id not in schedules:
-					schedules[outlet_id] = []
-					schedules[outlet_id].append([minutes*60 + now, state])
-					last_times[outlet_id] = minutes*60 + now
-				else:
-					last_times[outlet_id] = minutes*60 + last_times[outlet_id]
-					schedules[outlet_id].append([last_times[outlet_id], state])
-					schedules[outlet_id].sort(key=operator.itemgetter(0))
-			else:
-				d = datetime.datetime.now()
-				date, _, dtime = time_val.partition('_')
-				if dtime == '':
-					dtime = date
-				else:
-					day_id = date.split('-')
-					if len(day_id) == 1:
-						d = d.replace(day=int(day_id[0]))
-					elif len(day_id) == 2:
-						d = d.replace(day=int(day_id[1]), month=int(day_id[0]))
-					elif len(day_id) == 3:
-						d = d.replace(day=int(day_id[2]), month=int(day_id[1]), year=int(day_id[0]))
-					else:
-						print("ERROR: invalid time: " + time_val)
-						sys.exit(1)
-				dtime = dtime.split(':')
-				if len(dtime) == 1:
-					d = d.replace(minute=int(dtime[0]))
-				elif len(dtime) == 2:
-					d = d.replace(hour=int(dtime[0]), minute=int(dtime[1]))
-				else:
-					print("ERROR: invalid time: " + time_val)
-					sys.exit(1)
-				timestamp = time.mktime(d.timetuple())
-				if timestamp < now:
-					print("ERROR: time " + time_val + " is in the past")
-					sys.exit(1)
-				if not outlet_id in schedules:
-					schedules[outlet_id] = []
-				schedules[outlet_id].append([timestamp, state])
-				last_times[outlet_id] = timestamp
-				schedules[outlet_id].sort(key=operator.itemgetter(0))
-	for k,v in schedules.items():
-		set_schedule(k, v, now)
+        if len(usb_dev_map.keys()) > 1 and selected_device == None:
+                print("ERROR: Multiple devices, but none selected. Please set a device with '-d'")
+                sys.exit(1)
+        schedules = {}
+        now = time.time()
+        last_times = {}
+        for action in parsed.action:
+                outlet_id, _, state = action.partition('=')
+                if state == '':
+                        print("ERROR: invalid action '" + action + "'")
+                        sys.exit(1)
+                state, _, time_val = state.partition('@')
+                if state.lower() == 'clear':
+                        clear_schedule(outlet_id)
+                        continue
+                if time_val == '':
+                        set_outlet(selected_device, outlet_id, state)
+                else:
+                        if 'm' in time_val:
+                                minutes = int(time_val[:-1])
+                                if outlet_id not in schedules:
+                                        schedules[outlet_id] = []
+                                        schedules[outlet_id].append([minutes*60 + now, state])
+                                        last_times[outlet_id] = minutes*60 + now
+                                else:
+                                        last_times[outlet_id] = minutes*60 + last_times[outlet_id]
+                                        schedules[outlet_id].append([last_times[outlet_id], state])
+                                        schedules[outlet_id].sort(key=operator.itemgetter(0))
+                        else:
+                                d = datetime.datetime.now()
+                                date, _, dtime = time_val.partition('_')
+                                if dtime == '':
+                                        dtime = date
+                                else:
+                                        day_id = date.split('-')
+                                        if len(day_id) == 1:
+                                                d = d.replace(day=int(day_id[0]))
+                                        elif len(day_id) == 2:
+                                                d = d.replace(day=int(day_id[1]), month=int(day_id[0]))
+                                        elif len(day_id) == 3:
+                                                d = d.replace(day=int(day_id[2]), month=int(day_id[1]), year=int(day_id[0]))
+                                        else:
+                                                print("ERROR: invalid time: " + time_val)
+                                                sys.exit(1)
+                                dtime = dtime.split(':')
+                                if len(dtime) == 1:
+                                        d = d.replace(minute=int(dtime[0]))
+                                elif len(dtime) == 2:
+                                        d = d.replace(hour=int(dtime[0]), minute=int(dtime[1]))
+                                else:
+                                        print("ERROR: invalid time: " + time_val)
+                                        sys.exit(1)
+                                timestamp = time.mktime(d.timetuple())
+                                if timestamp < now:
+                                        print("ERROR: time " + time_val + " is in the past")
+                                        sys.exit(1)
+                                if not outlet_id in schedules:
+                                        schedules[outlet_id] = []
+                                schedules[outlet_id].append([timestamp, state])
+                                last_times[outlet_id] = timestamp
+                                schedules[outlet_id].sort(key=operator.itemgetter(0))
+        for k,v in schedules.items():
+                set_schedule(k, v, now)
 
 
 if parsed.list:
-	if selected_device != None:
-		dump_device_info(selected_device)
-	else:
-		list_devices()
+        if selected_device != None:
+                dump_device_info(selected_device)
+        else:
+                list_devices()
 
 if parsed.outlet_sched != None:
-	if selected_device != None:
-		ret = dump_schedule(selected_device, parsed.outlet_sched)
-		if ret != 0:
-			print("\tNo schedule found for outlet " + str(parsed.outlet_sched))
-	else:
-		for k in sorted(serial_dev_map.keys()):
-			print('Device ' + k)
-			ret = dump_schedule(serial_dev_map[k], parsed.outlet_sched)
-			if ret != 0:
-				print("\tNo schedule found for outlet " + str(parsed.outlet_sched))
+        if selected_device != None:
+                ret = dump_schedule(selected_device, parsed.outlet_sched)
+                if ret != 0:
+                        print("\tNo schedule found for outlet " + str(parsed.outlet_sched))
+        else:
+                for k in sorted(serial_dev_map.keys()):
+                        print('Device ' + k)
+                        ret = dump_schedule(serial_dev_map[k], parsed.outlet_sched)
+                        if ret != 0:
+                                print("\tNo schedule found for outlet " + str(parsed.outlet_sched))
 
